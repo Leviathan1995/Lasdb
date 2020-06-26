@@ -1,0 +1,26 @@
+[lasdb]
+ip="127.0.0.1"
+port=8220
+
+[master]
+ip=""
+port=8221
+sync_interval=5
+
+[db_option]
+thread_num=2
+data_dir="/data1"
+enable_monitor=true
+enable_compress=true
+enable_hotkeys=true
+lru_cache_size=0
+write_buffer_size=0
+
+[db_node]
+hash_slot_size=20
+db_name=["db1", "db2"]
+
+[binlog]
+enable_binlog=true
+max_binlog_size=64
+

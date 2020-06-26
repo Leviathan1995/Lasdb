@@ -6,13 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/Trident/server/util"
+	"github.com/leviathan1995/Trident/server/util"
 )
 
 func main() {
 	var conf string
 	var config map[string]interface{}
-	flag.StringVar(&conf, "c", ".server.json", "server config")
+	flag.StringVar(&conf, "c", ".trident-server.json", "server config")
 	flag.Parse()
 
 	bytes, err := ioutil.ReadFile(conf)

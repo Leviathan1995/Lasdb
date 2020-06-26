@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/Trident/service"
-	"github.com/xtaci/kcp-go"
+	"github.com/leviathan1995/Trident/service"
+	"github.com/xtaci/kcp-go/v5"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -29,7 +29,7 @@ func (s *server) Listen() {
 	key := pbkdf2.Key(s.PassWord, s.PassWord, 1024, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
 
-	if listener, err := kcp.ListenWithOptions(s.ListenAddr.String(), block, 0, 0); err == nil {
+	if listener, err := kcp.ListenWithOptions(s.ListenAddr.String(), block, 10, 3); err == nil {
 		log.Printf("Server启动成功,监听在 %s:%d, 密码: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.PassWord)
 		for {
 			cliConn, err := listener.AcceptKCP()

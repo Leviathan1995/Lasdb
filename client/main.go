@@ -7,7 +7,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/Trident/client/util"
+	"github.com/leviathan1995/Trident/client/util"
 )
 
 

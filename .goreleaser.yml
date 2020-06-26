@@ -1,5 +1,6 @@
 # .goreleaser.yml
 # Build customization
+
 builds:
   - binary: trident-client
     id: "client"

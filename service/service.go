@@ -3,15 +3,12 @@ package service
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/xtaci/kcp-go"
+	"github.com/xtaci/kcp-go/v5"
 	"io"
 	"net"
 )
 
-const BUFFSIZE = 1024 * 32
-
-type Type int
-
+const BUFFSIZE = 1024 * 1
 
 type Service struct {
 	ListenAddr  *net.TCPAddr

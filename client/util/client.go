@@ -132,7 +132,7 @@ func (c *client) directDial(userConn *net.TCPConn, dstAddr *net.TCPAddr) (*net.T
 func (c *client) DialServer() (*kcp.UDPSession, error) {
 	key := pbkdf2.Key([]byte(c.PassWord), []byte(c.PassWord), 1024, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-	serverConn, err := kcp.DialWithOptions(c.StableProxy.String(), block, 10, 3)
+	serverConn, err := kcp.DialWithOptions(c.StableProxy.String(), block, 0, 0)
 	if err != nil {
 		log.Printf("连接到远程服务器 %s 失败:%s", c.StableProxy.String(), err)
 

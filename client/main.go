@@ -14,7 +14,7 @@ import (
 func main() {
 	var conf string
 	var config map[string]interface{}
-	flag.StringVar(&conf, "c", ".client.json", "client config")
+	flag.StringVar(&conf, "c", ".trident-client.json", "client config")
 	flag.Parse()
 
 	bytes, err := ioutil.ReadFile(conf)

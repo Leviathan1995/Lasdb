@@ -8,7 +8,7 @@ import (
 	"net"
 )
 
-const BUFFSIZE = 1024 * 16
+const BUFFSIZE = 1024 * 32
 
 type Type int
 

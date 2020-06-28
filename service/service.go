@@ -1,28 +1,32 @@
 package service
 
 import (
+	"crypto/aes"
 	"encoding/binary"
 	"errors"
-	"github.com/xtaci/kcp-go/v5"
+	"fmt"
+	"github.com/leviathan1995/Trident/encryption"
 	"io"
+	"log"
 	"net"
+	"time"
 )
 
-const BUFFSIZE = 1024 * 1
+const BUFFS = 1024 * 4
 
 type Service struct {
+	Cipher     *encryption.Cipher
 	ListenAddr  *net.TCPAddr
-	ServerAddrs []*net.TCPAddr
+	ServerAdders []*net.TCPAddr
 	StableProxy *net.TCPAddr
-	PassWord    []byte
 }
 
-func (s *Service) KCPRead(conn *kcp.UDPSession, buf []byte) (n int, err error) {
+func (s *Service) TCPRead(conn *net.TCPConn, buf []byte) (n int, err error) {
 	nRead, errRead := conn.Read(buf)
 	return nRead, errRead
 }
 
-func (s *Service) KCPWrite(conn *kcp.UDPSession, buf []byte) (err error) {
+func (s *Service) TLSWrite(conn net.Conn, buf []byte) (error) {
 	nWrite := 0
 	nBuffer := len(buf)
 	for nWrite < nBuffer {
@@ -33,11 +37,6 @@ func (s *Service) KCPWrite(conn *kcp.UDPSession, buf []byte) (err error) {
 		nWrite += n
 	}
 	return nil
-}
-
-func (s *Service) TCPRead(conn *net.TCPConn, buf []byte) (n int, err error) {
-	nRead, errRead := conn.Read(buf)
-	return nRead, errRead
 }
 
 func (s *Service) TCPWrite(conn *net.TCPConn, buf []byte) (err error) {
@@ -53,11 +52,35 @@ func (s *Service) TCPWrite(conn *net.TCPConn, buf []byte) (err error) {
 	return nil
 }
 
-func (s *Service) TransferToTCP(kcp *kcp.UDPSession, tcp *net.TCPConn) error {
-	buf := make([]byte, BUFFSIZE)
+func (s *Service) DialSrv() (*net.TCPConn, error) {
+	d := net.Dialer{Timeout: 5 * time.Second}
+	remoteConn, err := d.Dial("tcp", s.StableProxy.String())
+	if err != nil {
+		log.Printf("连接到远程服务器 %s 失败:%s", s.StableProxy.String(), err)
+
+		/** Try to connect the other proxies **/
+		for _, srv := range s.ServerAdders {
+			log.Printf("尝试其他远程服务器: %s", srv.String())
+			remoteConn, err := d.Dial("tcp", srv.String())
+			if err == nil {
+				s.StableProxy = srv
+				tcpConn, _ := remoteConn.(*net.TCPConn)
+				return tcpConn, nil
+
+			}
+		}
+		return nil, errors.New(fmt.Sprintf("所有远程服务器连接均失败"))
+	}
+	log.Printf("连接到远程服务器 %s 成功", s.StableProxy.String())
+	tcpConn, _ := remoteConn.(*net.TCPConn)
+	return tcpConn, nil
+}
+
+func (s *Service) TransferForEncode(cli *net.TCPConn, srv *net.TCPConn) error {
+	buf := make([]byte, BUFFS)
 
 	for {
-		readCount, errRead := s.KCPRead(kcp, buf)
+		readCount, errRead := s.TCPRead(cli, buf)
 		if errRead != nil {
 			if errRead != io.EOF {
 				return nil
@@ -66,7 +89,7 @@ func (s *Service) TransferToTCP(kcp *kcp.UDPSession, tcp *net.TCPConn) error {
 			}
 		}
 		if readCount > 0 {
-			errWrite := s.TCPWrite(tcp, buf[0:readCount])
+			_, errWrite := s.EncodeTo(buf[0:readCount], srv)
 			if errWrite != nil {
 				return errWrite
 			}
@@ -74,12 +97,11 @@ func (s *Service) TransferToTCP(kcp *kcp.UDPSession, tcp *net.TCPConn) error {
 	}
 }
 
-
-func (s *Service) TransferToKCP(tcp *net.TCPConn, kcp *kcp.UDPSession) error {
-	buf := make([]byte, BUFFSIZE)
+func (s *Service) TransferForDecode(srv *net.TCPConn, cli *net.TCPConn) error {
+	buf := make([]byte, BUFFS)
 
 	for {
-		readCount, errRead := s.TCPRead(tcp, buf)
+		readCount, errRead := s.DecodeFrom(buf, srv)
 		if errRead != nil {
 			if errRead != io.EOF {
 				return nil
@@ -88,7 +110,7 @@ func (s *Service) TransferToKCP(tcp *net.TCPConn, kcp *kcp.UDPSession) error {
 			}
 		}
 		if readCount > 0 {
-			errWrite := s.KCPWrite(kcp, buf[0:readCount])
+			errWrite := s.TCPWrite(cli, buf[0:readCount])
 			if errWrite != nil {
 				return errWrite
 			}
@@ -96,9 +118,34 @@ func (s *Service) TransferToKCP(tcp *net.TCPConn, kcp *kcp.UDPSession) error {
 	}
 }
 
+/** Encode data */
+func (s *Service) EncodeTo(src []byte, conn *net.TCPConn) (n int, err error) {
+	iv := (s.Cipher.Password)[:aes.BlockSize]
+	encrypted := make([]byte, len(src))
+	(*s.Cipher).AesEncrypt(encrypted, src, iv)
+
+	log.Printf("Encode To %d", len(src))
+	return conn.Write(encrypted)
+}
+
+/** Decode data */
+func (s *Service) DecodeFrom(src []byte, conn *net.TCPConn) (n int, err error) {
+	encrypted := make([]byte, BUFFS)
+
+	nRead, err := conn.Read(encrypted)
+	if err != nil {
+		return 0, err
+	}
+
+	n = len(encrypted)
+	iv := (s.Cipher.Password)[:aes.BlockSize]
+	(*s.Cipher).AesDecrypt(src[:n], encrypted[:nRead], iv)
+
+	return nRead, nil
+}
 
 func (s *Service) Transfer(srcConn *net.TCPConn, dstConn *net.TCPConn) error {
-	buf := make([]byte, BUFFSIZE * 2)
+	buf := make([]byte, BUFFS)
 	for {
 		readCount, errRead := srcConn.Read(buf)
 		if errRead != nil {
@@ -117,47 +164,68 @@ func (s *Service) Transfer(srcConn *net.TCPConn, dstConn *net.TCPConn) error {
 	}
 }
 
-func (s *Service) CustomRead(userConn *net.TCPConn, buf [] byte) (int, error) {
-	readCount, errRead := userConn.Read(buf)
-	if errRead != nil {
-		if errRead != io.EOF {
-			return readCount, nil
-		} else {
-			return readCount, errRead
+func (s *Service) TransferToTCP(cliConn net.Conn, dstConn *net.TCPConn) error {
+	buf := make([]byte, BUFFS)
+	for {
+		nRead, err := cliConn.Read(buf)
+		if err != nil {
+			return err
+		}
+		if nRead > 0 {
+			errWrite := s.TCPWrite(dstConn, buf[0 : nRead])
+			if err != nil {
+				if errWrite == io.EOF {
+					return nil
+				} else {
+					return errWrite
+				}
+			}
 		}
 	}
-	return readCount, nil
 }
 
-func (s *Service) CustomWrite(userConn *net.TCPConn, buf [] byte, bufLen int) error {
-	writeCount, errWrite := userConn.Write(buf)
-	if errWrite != nil {
-		return errWrite
+func (s *Service) TransferToTLS(dstConn *net.TCPConn, srcConn net.Conn) error {
+	buf := make([]byte, BUFFS)
+	for {
+		nRead, errRead := dstConn.Read(buf)
+		if errRead != nil {
+			if errRead == io.EOF {
+				return nil
+			} else {
+				return errRead
+			}
+		}
+		if nRead > 0 {
+			errWrite := s.TLSWrite(srcConn, buf[0 : nRead])
+			if errWrite != nil {
+				if errWrite == io.EOF {
+					return nil
+				} else {
+					return errWrite
+				}
+			}
+		}
 	}
-	if bufLen != writeCount {
-		return io.ErrShortWrite
-	}
-	return nil
 }
 
-func (s *Service) ParseSOCKS5(userConn *net.TCPConn) (*net.TCPAddr, []byte, error){
-	buf := make([]byte, BUFFSIZE)
+func (s *Service) ParseSOCKS5(userConn *net.TCPConn) (*net.TCPAddr, []byte, error) {
+	buf := make([]byte, BUFFS)
 
-	readCount, errRead := s.CustomRead(userConn, buf)
+	readCount, errRead := s.TCPRead(userConn, buf)
 	if readCount > 0 && errRead == nil {
 		if buf[0] != 0x05 {
 			/** Version Number */
 			return &net.TCPAddr{}, nil, errors.New("Only Support SOCKS5")
 		} else {
 			/** [SOCKS5, NO AUTHENTICATION REQUIRED]  */
-			errWrite := s.CustomWrite(userConn, []byte{0x05, 0x00}, 2)
+			errWrite := s.TCPWrite(userConn, []byte{0x05, 0x00})
 			if errWrite != nil {
 				return &net.TCPAddr{}, nil, errors.New("Response SOCKS5 failed at the first stage.")
 			}
 		}
 	}
 
-	readCount, errRead = s.CustomRead(userConn, buf)
+	readCount, errRead = s.TCPRead(userConn, buf)
 	if readCount > 0 && errRead == nil {
 		if buf[1] != 0x01 {
 			/** Only support CONNECT method */
@@ -188,4 +256,66 @@ func (s *Service) ParseSOCKS5(userConn *net.TCPConn) (*net.TCPAddr, []byte, erro
 		return dstAddr, buf[:readCount], errRead
 	}
 	return &net.TCPAddr{}, nil, errRead
+}
+
+func (s *Service) ParseSOCKS5FromTLS(cliConn net.Conn) (*net.TCPAddr, error) {
+	buf := make([]byte, BUFFS)
+
+	nRead, errRead := cliConn.Read(buf)
+	if errRead != nil {
+		return &net.TCPAddr{}, errors.New("Read SOCKS5 failed at the first stage.")
+	}
+	if nRead > 0 {
+		if buf[0] != 0x05 {
+			/* Version Number */
+			return &net.TCPAddr{}, errors.New("Only support SOCKS5 protocol.")
+		} else {
+			/* [SOCKS5, NO AUTHENTICATION REQUIRED]  */
+			errWrite := s.TLSWrite(cliConn, []byte{0x05, 0x00})
+			if errWrite != nil {
+				return &net.TCPAddr{}, errors.New("Response SOCKS5 failed at the first stage.")
+			}
+		}
+	}
+
+	nRead, errRead = cliConn.Read(buf)
+	if errRead != nil {
+		return &net.TCPAddr{}, errors.New("Read SOCKS5 failed at the second stage.")
+	}
+	if nRead > 0 {
+		if buf[1] != 0x01 {
+			/* Only support CONNECT method */
+			return &net.TCPAddr{}, errors.New("Only support CONNECT method.")
+		}
+
+		var dstIP []byte
+		switch buf[3] { /* checking ATYPE */
+		case 0x01: /* IPv4 */
+			dstIP = buf[4 : 4+net.IPv4len]
+		case 0x03: /* DOMAINNAME */
+			ipAddr, err := net.ResolveIPAddr("ip", string(buf[5:nRead-2]))
+			if err != nil {
+				return &net.TCPAddr{}, errors.New("Parse IP from DomainName failed.")
+			}
+			dstIP = ipAddr.IP
+		case 0x04: /* IPV6 */
+			dstIP = buf[4 : 4+net.IPv6len]
+		default:
+			return &net.TCPAddr{}, errors.New("Wrong DST.ADDR and DST.PORT")
+		}
+		dstPort := buf[nRead-2 : nRead]
+
+		if buf[1] == 0x01 {
+			/* TCP over SOCKS5 */
+			dstAddr := &net.TCPAddr{
+				IP:   dstIP,
+				Port: int(binary.BigEndian.Uint16(dstPort)),
+			}
+			return dstAddr, errRead
+		} else {
+			log.Println("Only support CONNECT method.")
+			return &net.TCPAddr{}, errRead
+		}
+	}
+	return &net.TCPAddr{}, errRead
 }

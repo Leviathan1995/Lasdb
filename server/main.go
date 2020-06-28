@@ -23,6 +23,15 @@ func main() {
 	if err := json.Unmarshal(bytes, &config); err != nil {
 		log.Fatalf("parse %s failed.", conf)
 	}
-	s := server.NewServer(config["listen_addr"].(string), config["password"].(string))
+
+	enableTLS := int(config["tls"].(float64))
+	tlsPort := int(config["tls_port"].(float64))
+
+	s := server.NewServer(config["listen_addr"].(string), config["password"].(string), tlsPort)
+
+	if enableTLS == 1 {
+		go s.ListenTLS()
+	}
+
 	s.Listen()
 }

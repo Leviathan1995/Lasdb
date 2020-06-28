@@ -3,18 +3,17 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"github.com/leviathan1995/Trident/client/util"
 	"io/ioutil"
 	"log"
 	"net"
-
-	"github.com/leviathan1995/Trident/client/util"
 )
-
 
 func main() {
 	var conf string
 	var config map[string]interface{}
-	flag.StringVar(&conf, "c", ".trident-client.json", "client config")
+	var enableBypass bool
+	flag.StringVar(&conf, "c", ".trident-client.json", "The client configuration.")
 	flag.Parse()
 
 	bytes, err := ioutil.ReadFile(conf)
@@ -40,13 +39,25 @@ func main() {
 		}
 	}
 
-	var serverAddrs []string
-	serverAddr, _ := config["server_addr"].([]interface{})
+	var srvAdders []string
+	srvAddr, _ := config["server_addr"].([]interface{})
 
-	for _, addr := range serverAddr {
-		serverAddrs = append(serverAddrs, addr.(string))
+	for _, ip := range srvAddr {
+		srvAdders = append(srvAdders, ip.(string))
 	}
 
-	clientImpl := client.NewClient(serverAddrs, config["listen_addr"].(string), config["password"].(string), proxyIP)
-	_ = clientImpl.Listen()
+	Bypass := int(config["bypass"].(float64))
+
+
+	if Bypass == 0 {
+		enableBypass = false
+	} else {
+		enableBypass = true
+	}
+
+	c := client.NewClient(config["listen_addr"].(string), srvAdders, proxyIP, config["password"].(string), enableBypass)
+	err = c.Listen()
+	if err != nil {
+		log.Printf("Listen failed. %s", err.Error())
+	}
 }

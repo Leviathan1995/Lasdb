@@ -1,4 +1,6 @@
 {
   "listen_addr" : "0.0.0.0:20015",
-  "password" : "uzon57jd0v869t7w"
+  "password"    : "uzon57jd0v869t7w",
+  "tls"         : 1,
+  "tls_port"    : 20016
 }

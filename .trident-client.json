@@ -4,5 +4,6 @@
   "listen_addr" : "127.0.0.1:20020",
   "password"    : "uzon57jd0v869t7w",
   "proxy_url"   : ["www.github.com",
-                   "www.baidu.com"]
+                   "www.baidu.com"],
+  "bypass"      : 1
 }

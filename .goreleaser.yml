@@ -11,6 +11,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
   - binary: trident-server
     id: "server"
     main: ./server/main.go
@@ -20,6 +21,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
 
 archive:
   format_overrides:

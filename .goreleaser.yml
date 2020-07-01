@@ -33,5 +33,4 @@ archive:
     - trident-client.service
     - trident-server.service
     - supervisord.conf
-    - whiteiplist.pac
     - start.sh

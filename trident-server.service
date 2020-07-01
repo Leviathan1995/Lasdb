@@ -3,7 +3,7 @@ Description=Trident-Server
 
 [Service]
 TimeoutStartSec=0
-ExecStart=/root/proxy/trident-server -c /root/proxy/.server.json
+ExecStart=/root/proxy/trident-server -c /root/proxy/.trident-server.json
 Restart=always
 
 [Install]

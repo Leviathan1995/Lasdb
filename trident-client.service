@@ -1,0 +1,10 @@
+[Unit]
+Description=Trident-Client
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/root/proxy/trident-client -c /root/proxy/.trident-client.json
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

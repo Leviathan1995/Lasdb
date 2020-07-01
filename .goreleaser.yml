@@ -28,8 +28,8 @@ archive:
       - goos: windows
         format: zip
   files:
-    - .client.json
-    - .server.json
+    - .trident-client.json
+    - .trident-server.json
     - trident-client.service
     - trident-server.service
     - supervisord.conf

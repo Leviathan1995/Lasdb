@@ -38,7 +38,7 @@ func (s *server) Listen() {
 		log.Println(err)
 		return
 	}
-	log.Printf("Server TCP listen on %s:%d successfully, Passord: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.Cipher.Password)
+	log.Printf("Server TCP listen on %s:%d successfully, Password: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.Cipher.Password)
 	defer listen.Close()
 
 	for {

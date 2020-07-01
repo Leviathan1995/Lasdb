@@ -54,15 +54,15 @@ func NewClient(listen string, srvAdders []string, proxyIP []string, password str
 
 func (c *client) Listen() error {
 	for _, srv := range c.ServerAdders {
-		log.Printf("Server监听地址: %s:%d", srv.IP, srv.Port)
+		log.Printf("Server address: %s:%d", srv.IP, srv.Port)
 	}
-	log.Printf("默认Server监听地址: %s:%d", c.Service.StableProxy.IP, c.Service.StableProxy.Port)
+	log.Printf("Default server address: %s:%d", c.Service.StableProxy.IP, c.Service.StableProxy.Port)
 
 	listener, err := net.ListenTCP("tcp", c.ListenAddr)
 	if err != nil {
 		return err
 	}
-	log.Printf("Client启动成功, 监听地址: %s:%d, 密码: %s", c.ListenAddr.IP, c.ListenAddr.Port, c.Cipher.Password)
+	log.Printf("Client listen on %s:%d successfuuly, Password: %s", c.ListenAddr.IP, c.ListenAddr.Port, c.Cipher.Password)
 
 	defer listener.Close()
 

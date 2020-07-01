@@ -32,12 +32,13 @@ func NewServer(addr, password string, tlsPort int) *server {
 }
 
 func (s *server) Listen() {
+	log.Printf("Server bind address for TCP: %s:%d", s.ListenAddr.IP.String(), s.ListenAddr.Port)
 	listen, err := net.ListenTCP("tcp", s.ListenAddr)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	log.Printf("Server启动成功,监听在 %s:%d, 密码: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.Cipher.Password)
+	log.Printf("Server TCP listen on %s:%d successfully, Passord: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.Cipher.Password)
 	defer listen.Close()
 
 	for {
@@ -51,7 +52,7 @@ func (s *server) Listen() {
 }
 
 func (s *server) ListenTLS() error {
-	log.Printf("Server TLS address: %s:%d", s.ListenAddr.IP.String(), s.tlsPort)
+	log.Printf("Server bind address for TLS: %s:%d", s.ListenAddr.IP.String(), s.tlsPort)
 
 	cert, err := tls.LoadX509KeyPair("/etc/server.pem", "/etc/server.key")
 	if err != nil {
@@ -61,12 +62,12 @@ func (s *server) ListenTLS() error {
 
 	certBytes, err := ioutil.ReadFile("/etc/client.pem")
 	if err != nil {
-		panic("Unable to read cert.pem")
+		panic("Unable to read cert.pem.")
 	}
 	clientCertPool := x509.NewCertPool()
 	ok := clientCertPool.AppendCertsFromPEM(certBytes)
 	if !ok {
-		panic("Failed to parse root certificate")
+		panic("Failed to parse root certificate.")
 	}
 	config := &tls.Config{
 		Certificates: []tls.Certificate{cert},
@@ -78,7 +79,7 @@ func (s *server) ListenTLS() error {
 	if err != nil {
 		return err
 	} else {
-		log.Printf("Server TLS 启动成功, 监听在 %s:%d.",s.ListenAddr.IP.String(), s.tlsPort)
+		log.Printf("Server TLS listen on %s:%d successfully.",s.ListenAddr.IP.String(), s.tlsPort)
 	}
 	defer listener.Close()
 

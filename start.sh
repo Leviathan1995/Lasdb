@@ -1,5 +1,12 @@
 #!/bin/bash
 
+openssl genrsa -out server.key 2048
+openssl req -new -x509 -key server.key -out server.pem -days 3650
+openssl genrsa -out client.key 2048
+openssl req -new -x509 -key client.key -out client.pem -days 3650
+openssl pkcs12 -export -clcerts -in client.pem -inkey client.key -out root.p12 -passout pass:abc
+mv server.key server.pem client.key client.pem /etc/
+
 if [ "$1" = "client" ]
 then
   sudo mkdir -p /root/proxy/

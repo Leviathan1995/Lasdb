@@ -66,7 +66,7 @@ func (s *server) ListenTLS() error {
 	clientCertPool := x509.NewCertPool()
 	ok := clientCertPool.AppendCertsFromPEM(certBytes)
 	if !ok {
-		panic("failed to parse root certificate")
+		panic("Failed to parse root certificate")
 	}
 	config := &tls.Config{
 		Certificates: []tls.Certificate{cert},
@@ -78,7 +78,7 @@ func (s *server) ListenTLS() error {
 	if err != nil {
 		return err
 	} else {
-		log.Printf("Server TLS listen at %s:%d successed.",s.ListenAddr.IP.String(), s.tlsPort)
+		log.Printf("Server TLS 启动成功, 监听在 %s:%d.",s.ListenAddr.IP.String(), s.tlsPort)
 	}
 	defer listener.Close()
 

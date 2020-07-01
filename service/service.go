@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const BUFFS = 1024 * 4
+const BUFFS = 1024 * 8
 
 type Service struct {
 	Cipher     *encryption.Cipher

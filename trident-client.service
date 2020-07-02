@@ -3,7 +3,7 @@ Description=Trident-Client
 
 [Service]
 TimeoutStartSec=0
-ExecStart=/root/proxy/trident-client -c /root/proxy/.trident-client.json
+ExecStart=/usr/local/bin/trident-client -c /root/proxy/.trident-client.json
 Restart=always
 
 [Install]

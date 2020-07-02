@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/leviathan1995/Trident/encryption"
 	"github.com/leviathan1995/Trident/service"
 )
 
@@ -27,7 +26,6 @@ type client struct {
 }
 
 func NewClient(listen string, srvAdders []string, proxyIP []string, password string, enableBypass bool) *client {
-	c := encryption.NewCipher([]byte(password))
 	listenAddr, _ := net.ResolveTCPAddr("tcp", listen)
 
 	var proxyAdders []*net.TCPAddr
@@ -37,7 +35,6 @@ func NewClient(listen string, srvAdders []string, proxyIP []string, password str
 	}
 	return &client {
 		&service.Service{
-			Cipher:      c,
 			ListenAddr:  listenAddr,
 			ServerAdders: proxyAdders,
 			StableProxy: proxyAdders[0],
@@ -62,7 +59,7 @@ func (c *client) Listen() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Client listen on %s:%d successfuuly, Password: %s", c.ListenAddr.IP, c.ListenAddr.Port, c.Cipher.Password)
+	log.Printf("Client listen on %s:%d successfuuly.", c.ListenAddr.IP, c.ListenAddr.Port)
 
 	defer listener.Close()
 
@@ -169,7 +166,7 @@ func (c *client) addBlockList(ip string) {
 }
 
 func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
-	proxy, err := c.newSrvConn()
+	proxy, err := c.DialSrv()
 	if err != nil {
 		log.Println(err)
 		proxy, err = c.newSrvConn()

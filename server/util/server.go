@@ -9,7 +9,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/leviathan1995/Trident/encryption"
 	"github.com/leviathan1995/Trident/service"
 )
 
@@ -20,11 +19,9 @@ type server struct {
 
 func NewServer(addr, password string, tlsPort int) *server {
 	tcpAddr, _ := net.ResolveTCPAddr("tcp", addr)
-	c := encryption.NewCipher([]byte(password))
 
 	return &server{
 		&service.Service{
-			Cipher: c,
 			ListenAddr: tcpAddr,
 		},
 		tlsPort,
@@ -38,7 +35,7 @@ func (s *server) Listen() {
 		log.Println(err)
 		return
 	}
-	log.Printf("Server TCP listen on %s:%d successfully, Password: %s", s.ListenAddr.IP, s.ListenAddr.Port, s.Cipher.Password)
+	log.Printf("Server TCP listen on %s:%d successfully.", s.ListenAddr.IP, s.ListenAddr.Port)
 	defer listen.Close()
 
 	for {

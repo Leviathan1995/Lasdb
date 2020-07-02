@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/leviathan1995/Trident/encryption"
 	"io"
 	"log"
 	"net"
@@ -14,13 +13,12 @@ import (
 const BUFFS = 1024 * 8
 
 type Service struct {
-	Cipher     *encryption.Cipher
 	ListenAddr  *net.TCPAddr
 	ServerAdders []*net.TCPAddr
 	StableProxy *net.TCPAddr
 }
 
-func (s *Service) TLSWrite(conn net.Conn, buf []byte) (error) {
+func (s *Service) TLSWrite(conn net.Conn, buf []byte) error {
 	nWrite := 0
 	nBuffer := len(buf)
 	for nWrite < nBuffer {
@@ -70,7 +68,7 @@ func (s *Service) TransferForEncode(srcConn *net.TCPConn, dstConn *net.TCPConn) 
 			}
 		}
 		if nRead > 0 {
-			nWrite, errWrite := s.EncodeTo(buf[0:nRead], dstConn)
+			_, errWrite := s.EncodeTo(buf[0:nRead], dstConn)
 			if errWrite != nil {
 				return errWrite
 			}
@@ -98,32 +96,26 @@ func (s *Service) TransferForDecode(srcConn *net.TCPConn, dstConn *net.TCPConn) 
 
 /** Encode data */
 func (s *Service) EncodeTo(src []byte, dstConn *net.TCPConn) (n int, err error) {
-    /*
-	iv := (s.Cipher.Password)[:aes.BlockSize]
 	encrypted := make([]byte, len(src))
-	(*s.Cipher).AesEncrypt(encrypted, src, iv)
-
+	for i, bit := range src {
+		encrypted[i] = bit - 1
+	}
 	return dstConn.Write(encrypted)
-    */
-	return dstConn.Write(src)
 }
 
 /** Decode data */
 func (s *Service) DecodeFrom(src []byte, srcConn *net.TCPConn) (n int, err error) {
-	/*
 	encrypted := make([]byte, BUFFS)
 	nRead, errRead := srcConn.Read(encrypted)
-	log.Printf("Decode %d", nRead)
 	if nRead == 0 || errRead != nil {
 		return nRead, errRead
 	}
 
-	iv := (s.Cipher.Password)[:aes.BlockSize]
-	(*s.Cipher).AesDecrypt(src[:nRead], encrypted[:nRead], iv)
+	for i, bit := range encrypted {
+		src[i] = bit + 1
+	}
 
 	return nRead, nil
-    */
-	return srcConn.Read(src)
 }
 
 func (s *Service) Transfer(srcConn *net.TCPConn, dstConn *net.TCPConn) error {

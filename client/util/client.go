@@ -124,7 +124,10 @@ func (c *client) directDial(userConn *net.TCPConn, dstAddr *net.TCPAddr) (*net.T
 		} else {
 			dstConn.SetLinger(0)
 			/* If connect to the dst addr success, we need to notify client. */
-			errDialTCP = c.TCPWrite(userConn, []byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+			_, errWrite := userConn.Write([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+			if errDialTCP != nil {
+				return &net.TCPConn{}, errWrite
+			}
 		}
 		return dstConn, errDialTCP
 	}
@@ -174,7 +177,9 @@ func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
 			log.Println(err)
 			return
 		}
+		return
 	}
+
 	defer proxy.Close()
 
 	proxy.SetLinger(0)
@@ -185,13 +190,13 @@ func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
 	}
 
 	go func() {
-		err := c.TransferForEncode(userConn, proxy)
-		if err != nil {
+		errTransfer := c.TransferForDecode(proxy, userConn)
+		if errTransfer != nil {
 			userConn.Close()
 			proxy.Close()
 		}
 	}()
-	_ = c.TransferForDecode(proxy, userConn)
+	c.TransferForEncode(userConn, proxy)
 }
 
 func (c *client) handleConn(userConn *net.TCPConn) {

@@ -42,12 +42,12 @@ func (s *server) Listen() {
 	defer listen.Close()
 
 	for {
-		userConn, err := listen.AcceptTCP()
-		if err != nil {
-			log.Fatalf("%s", err.Error())
+		cliConn, errAccept := listen.AcceptTCP()
+		if errAccept != nil {
+			log.Fatalf("Accect TPC connection failed. %s", err.Error())
 		}
-		userConn.SetLinger(0)
-		go s.handleTCPConn(userConn)
+		cliConn.SetLinger(0)
+		go s.handleTCPConn(cliConn)
 	}
 }
 
@@ -130,11 +130,11 @@ func (s *server) handleTLSConn(cliConn net.Conn) {
 	err = s.TransferToTLS(dstConn, cliConn)
 }
 
-func (s *server) handleTCPConn(userConn *net.TCPConn) {
-	defer userConn.Close()
+func (s *server) handleTCPConn(cliConn *net.TCPConn) {
+	defer cliConn.Close()
 	/*
-	 *  RFC 1928 - IETF
-	 * https://www.ietf.org/rfc/rfc1928.txt
+	 *　　RFC 1928 - IETF
+	 * 　https://www.ietf.org/rfc/rfc1928.txt
 	 */
 
 	/*	We already move the SOCKS5 parsing to the client, but if the client can't directly
@@ -145,7 +145,7 @@ func (s *server) handleTCPConn(userConn *net.TCPConn) {
 
 	/** Get the connect command and the destination address */
 	buf := make([]byte, service.BUFFS)
-	n, err := s.DecodeFrom(buf, userConn)
+	n, err := s.DecodeFrom(buf, cliConn)
 	if err != nil {
 		return
 	}
@@ -177,29 +177,28 @@ func (s *server) handleTCPConn(userConn *net.TCPConn) {
 	}
 
 	/** Step4: connect to the destination server and send a reply to client */
-	dstServer, err := net.DialTCP("tcp", nil, dstAddr)
-	if err != nil {
+	dstServer, errDial := net.DialTCP("tcp", nil, dstAddr)
+	if errDial != nil {
 		log.Printf("Connect to destination addr %s failed", dstAddr.String())
 		return
 	} else {
-		defer dstServer.Close()
 		dstServer.SetLinger(0)
-		/** If connect to the dst addr success, we need to notify client */
-		_, errWrite := s.EncodeTo([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, userConn)
+		/** If connect to the dst addr success, we also need to notify client */
+		_, errWrite := s.EncodeTo([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, cliConn)
 		if errWrite != nil {
 			return
 		}
 	}
 
-	log.Printf("Connect to destination addr %s", dstAddr.String())
+	log.Printf("Connect to the destination server %s successfully.", dstAddr.String())
+	defer dstServer.Close()
 
 	go func() {
-		err := s.TransferForEncode(dstServer, userConn)
-		if err != nil {
-			userConn.Close()
+		errTransfer := s.TransferForDecode(cliConn, dstServer)
+		if errTransfer != nil {
+			cliConn.Close()
 			dstServer.Close()
 		}
 	}()
-
-	_ = s.TransferForDecode(userConn, dstServer)
+	s.TransferForEncode(dstServer, cliConn)
 }

@@ -48,7 +48,6 @@ func main() {
 
 	Bypass := int(config["bypass"].(float64))
 
-
 	if Bypass == 0 {
 		enableBypass = false
 	} else {

@@ -13,7 +13,7 @@ func main() {
 	var conf string
 	var config map[string]interface{}
 	var enableBypass bool
-	flag.StringVar(&conf, "c", ".trident-client.json", "The client configuration.")
+	flag.StringVar(&conf, "c", ".trident-client.json", "The trident client configuration.")
 	flag.Parse()
 
 	bytes, err := ioutil.ReadFile(conf)
@@ -46,9 +46,9 @@ func main() {
 		srvAdders = append(srvAdders, ip.(string))
 	}
 
-	Bypass := int(config["bypass"].(float64))
+	bypass := int(config["bypass"].(float64))
 
-	if Bypass == 0 {
+	if bypass == 0 {
 		enableBypass = false
 	} else {
 		enableBypass = true
@@ -57,6 +57,6 @@ func main() {
 	c := client.NewClient(config["listen_addr"].(string), srvAdders, proxyIP, config["password"].(string), enableBypass)
 	err = c.Listen()
 	if err != nil {
-		log.Printf("Listen failed. %s", err.Error())
+		log.Printf("Client listen failed: %s", err.Error())
 	}
 }

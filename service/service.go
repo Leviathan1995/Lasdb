@@ -4,13 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"time"
 )
 
-const BUFFS = 1024 * 8
+const BUFFS = 1024 * 2
 
 type Service struct {
 	ListenAddr  *net.TCPAddr
@@ -61,11 +60,7 @@ func (s *Service) TransferForEncode(srcConn *net.TCPConn, dstConn *net.TCPConn) 
 	for {
 		nRead, errRead := srcConn.Read(buf)
 		if errRead != nil {
-			if errRead != io.EOF {
-				return nil
-			} else {
-				return errRead
-			}
+			return errRead
 		}
 		if nRead > 0 {
 			_, errWrite := s.EncodeTo(buf[0:nRead], dstConn)
@@ -100,6 +95,7 @@ func (s *Service) EncodeTo(src []byte, dstConn *net.TCPConn) (n int, err error) 
 	for i, bit := range src {
 		encrypted[i] = bit - 1
 	}
+
 	return dstConn.Write(encrypted)
 }
 
@@ -107,7 +103,7 @@ func (s *Service) EncodeTo(src []byte, dstConn *net.TCPConn) (n int, err error) 
 func (s *Service) DecodeFrom(src []byte, srcConn *net.TCPConn) (n int, err error) {
 	encrypted := make([]byte, BUFFS)
 	nRead, errRead := srcConn.Read(encrypted)
-	if nRead == 0 || errRead != nil {
+	if errRead != nil {
 		return nRead, errRead
 	}
 
@@ -123,11 +119,7 @@ func (s *Service) Transfer(srcConn *net.TCPConn, dstConn *net.TCPConn) error {
 	for {
 		readCount, errRead := srcConn.Read(buf)
 		if errRead != nil {
-			if errRead != io.EOF {
-				return nil
-			} else {
-				return errRead
-			}
+			return errRead
 		}
 		if readCount > 0 {
 			_, errWrite := dstConn.Write(buf[0:readCount])
@@ -159,20 +151,12 @@ func (s *Service) TransferToTLS(dstConn *net.TCPConn, srcConn net.Conn) error {
 	for {
 		nRead, errRead := dstConn.Read(buf)
 		if errRead != nil {
-			if errRead == io.EOF {
-				return nil
-			} else {
-				return errRead
-			}
+			return errRead
 		}
 		if nRead > 0 {
 			errWrite := s.TLSWrite(srcConn, buf[0 : nRead])
 			if errWrite != nil {
-				if errWrite == io.EOF {
-					return nil
-				} else {
-					return errWrite
-				}
+				return errWrite
 			}
 		}
 	}
@@ -222,7 +206,7 @@ func (s *Service) ParseSOCKS5(userConn *net.TCPConn) (*net.TCPAddr, []byte, erro
 		case 0x04: /** IPV6 */
 			desIP = buf[4 : 4+net.IPv6len]
 		default:
-			return &net.TCPAddr{}, nil, errors.New("Wrong DST.ADDR and DST.PORT")
+			return &net.TCPAddr{}, nil, errors.New("The Wrong DST.ADDR and DST.PORT")
 		}
 		dstPort := buf[readCount-2 : readCount]
 		dstAddr := &net.TCPAddr{

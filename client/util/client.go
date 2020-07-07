@@ -53,7 +53,7 @@ func (c *client) Listen() error {
 	for _, srv := range c.ServerAdders {
 		log.Printf("Server address: %s:%d", srv.IP, srv.Port)
 	}
-	log.Printf("Default server address: %s:%d", c.Service.StableProxy.IP, c.Service.StableProxy.Port)
+	log.Printf("Use the default server address: %s:%d", c.Service.StableProxy.IP, c.Service.StableProxy.Port)
 
 	listener, err := net.ListenTCP("tcp", c.ListenAddr)
 	if err != nil {
@@ -166,7 +166,7 @@ func (c *client) addBlockList(ip string) {
 }
 
 func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
-	proxy, err := c.DialSrv()
+	proxy, err := c.newSrvConn()
 	if err != nil {
 		log.Println(err)
 		proxy, err = c.newSrvConn()
@@ -178,7 +178,6 @@ func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
 	}
 
 	defer proxy.Close()
-
 	proxy.SetLinger(0)
 
 	_, errWrite := c.EncodeTo(lastUserRequest, proxy)
@@ -199,8 +198,8 @@ func (c *client) tryProxy(userConn *net.TCPConn, lastUserRequest []byte) {
 func (c *client) handleConn(userConn *net.TCPConn) {
 	defer userConn.Close()
 
-	/*  Why use lastUserRequest?
-	 *  If we can not direct connect to the destination address, We need to forward
+	/*  Why use the lastUserRequest?
+	 *  Note that if we can't connect to the destination server directly, we need to forward
 	 *  the last data package to the server.
 	 */
 	dstAddr, lastUserRequest, errParse := c.ParseSOCKS5(userConn)
@@ -223,12 +222,14 @@ func (c *client) handleConn(userConn *net.TCPConn) {
 		}
 
 		dstConn, errDirect := c.directDial(userConn, dstAddr)
+		defer dstConn.Close()
+
 		if errDirect != nil {
-			log.Printf("Can't directly connect to %s, Try to use Proxy and put it into IP blacklist", dstAddr.String())
+			log.Printf("Can't connect to %s directly. Try to use Proxy and put it into IP blacklist", dstAddr.String())
 			go c.addBlockList(dstAddr.IP.String())
 			c.tryProxy(userConn, lastUserRequest)
 		} else {
-			log.Printf("Directly connect to %s", dstAddr.String())
+			log.Printf("Connect to %s directly", dstAddr.String())
 			c.directConnect(userConn, dstConn)
 		}
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const BUFFS = 1024 * 2
+const BUFFS = 1024 * 16
 
 type Service struct {
 	ListenAddr  *net.TCPAddr

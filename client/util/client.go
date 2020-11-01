@@ -208,29 +208,34 @@ func (c *client) handleConn(userConn *net.TCPConn) {
 		return
 	}
 
-	block := c.searchBlockList(dstAddr.IP.String())
-	if block {
-		log.Printf("Can't directly connect to %s, Try to use Proxy", dstAddr.String())
-		c.tryProxy(userConn, lastUserRequest)
-	} else {
-		for _, ip := range c.blockIP {
-			if ip == dstAddr.IP.String() {
-				go c.addBlockList(dstAddr.IP.String())
-				c.tryProxy(userConn, lastUserRequest)
-				return
-			}
-		}
-
-		dstConn, errDirect := c.directDial(userConn, dstAddr)
-		defer dstConn.Close()
-
-		if errDirect != nil {
-			log.Printf("Can't connect to %s directly. Try to use Proxy and put it into IP blacklist", dstAddr.String())
-			go c.addBlockList(dstAddr.IP.String())
+	if c.enableBypass {
+		block := c.searchBlockList(dstAddr.IP.String())
+		if block {
+			log.Printf("Can't directly connect to %s, Try to use Proxy", dstAddr.String())
 			c.tryProxy(userConn, lastUserRequest)
 		} else {
-			log.Printf("Connect to %s directly", dstAddr.String())
-			c.directConnect(userConn, dstConn)
+			for _, ip := range c.blockIP {
+				if ip == dstAddr.IP.String() {
+					go c.addBlockList(dstAddr.IP.String())
+					c.tryProxy(userConn, lastUserRequest)
+					return
+				}
+			}
+
+			dstConn, errDirect := c.directDial(userConn, dstAddr)
+			defer dstConn.Close()
+
+			if errDirect != nil {
+				log.Printf("Can't connect to %s directly. Try to use Proxy and put it into IP blacklist", dstAddr.String())
+				go c.addBlockList(dstAddr.IP.String())
+				c.tryProxy(userConn, lastUserRequest)
+			} else {
+				log.Printf("Connect to %s directly", dstAddr.String())
+				c.directConnect(userConn, dstConn)
+			}
 		}
+	} else {
+		log.Printf("Try to use Proxy.")
+		c.tryProxy(userConn, lastUserRequest)
 	}
 }

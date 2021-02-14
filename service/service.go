@@ -93,7 +93,7 @@ func (s *Service) TransferForDecode(srcConn *net.TCPConn, dstConn *net.TCPConn) 
 func (s *Service) EncodeTo(src []byte, dstConn *net.TCPConn) (n int, err error) {
 	encrypted := make([]byte, len(src))
 	for i, bit := range src {
-		encrypted[i] = bit - 1
+		encrypted[i] = ^bit
 	}
 
 	return dstConn.Write(encrypted)
@@ -108,7 +108,7 @@ func (s *Service) DecodeFrom(src []byte, srcConn *net.TCPConn) (n int, err error
 	}
 
 	for i, bit := range encrypted {
-		src[i] = bit + 1
+		src[i] = ^bit
 	}
 
 	return nRead, nil
